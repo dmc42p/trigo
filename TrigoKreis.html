@@ -1,0 +1,990 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Einheitskreis — Sinus, Kosinus, Tangens</title>
+<style>
+  :root{
+    --ground:#131a2a;
+    --panel:#1a2237;
+    --panel-2:#212b44;
+    --line:rgba(226,232,245,.14);
+    --ink:#e7ecf7;
+    --ink-dim:#9aa6c2;
+    --sin:#f2a24c;
+    --cos:#4fc9c4;
+    --tan:#ec6f95;
+    --ang:#a58cec;
+    --hyp:#e7ecf7;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    background:var(--ground);
+    color:var(--ink);
+    font-family:"Segoe UI",Roboto,-apple-system,BlinkMacSystemFont,Helvetica,Arial,sans-serif;
+    font-size:15px;
+    line-height:1.55;
+    padding:22px 20px 48px;
+    overscroll-behavior:contain;
+  }
+  body.fs{position:fixed;inset:0;overflow-y:auto;-webkit-overflow-scrolling:touch;z-index:40}
+  #fsBtn{position:fixed;top:10px;right:12px;z-index:60;font-size:13px;padding:7px 11px;
+         min-height:0;background:var(--panel);border-color:var(--line);opacity:.8}
+  #fsBtn:hover{opacity:1}
+
+  .math{font-family:"Iowan Old Style",Palatino,"Palatino Linotype",Georgia,"Times New Roman",serif}
+  .var{font-family:"Iowan Old Style",Palatino,Georgia,serif;font-style:italic}
+
+  header{max-width:1180px;margin:0 auto 18px}
+  h1{font-family:"Iowan Old Style",Palatino,Georgia,serif;font-weight:600;font-size:26px;margin:0 0 4px}
+  header p{margin:0;color:var(--ink-dim);max-width:62ch}
+
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px}
+  .panel + .panel{margin-top:16px}
+
+  svg{display:block;width:100%;height:auto;touch-action:none}
+  svg text{font-family:"Iowan Old Style",Palatino,Georgia,serif}
+  svg .lbl{font-size:13px}
+  svg .tick{font-size:12px;fill:var(--ink-dim)}
+  .grab{cursor:grab}
+  .grab:active{cursor:grabbing}
+
+  /* ---- Bedienelemente ---- */
+  .controls{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center;padding:12px 2px 2px}
+  .controls + .controls{border-top:1px solid var(--line);margin-top:8px}
+  input[type=range]{flex:1 1 240px;min-width:180px;accent-color:var(--ang);height:22px}
+  label.check{display:inline-flex;align-items:center;gap:7px;cursor:pointer;color:var(--ink-dim);font-size:14px}
+  label.check input{accent-color:var(--ang);width:16px;height:16px;cursor:pointer}
+  label.check:hover{color:var(--ink)}
+  label.check.sin input{accent-color:var(--sin)}
+  label.check.cos input{accent-color:var(--cos)}
+  label.check.tan input{accent-color:var(--tan)}
+  button{
+    background:transparent;border:1px solid var(--line);border-radius:8px;color:var(--ink);
+    font:inherit;font-size:14px;padding:8px 13px;cursor:pointer;
+    min-height:42px;touch-action:manipulation;-webkit-tap-highlight-color:rgba(165,140,236,.3);
+  }
+  button:hover{background:var(--panel-2)}
+  button.primary{background:var(--ang);border-color:var(--ang);color:#171c2c;font-weight:600}
+  button.primary:hover{filter:brightness(1.08)}
+  input[type=number]{
+    width:92px;background:var(--panel-2);border:1px solid var(--line);border-radius:8px;
+    color:var(--ink);font:inherit;font-size:17px;padding:8px 10px;font-variant-numeric:tabular-nums;
+  }
+  select{background:var(--panel-2);border:1px solid var(--line);border-radius:8px;color:var(--ink);
+         font:inherit;font-size:14px;padding:7px 9px;cursor:pointer}
+  input:focus-visible,button:focus-visible,select:focus-visible{outline:2px solid var(--ang);outline-offset:2px}
+
+  /* ---- feste Anzeigeflächen, damit nichts zappelt ---- */
+  .readout{display:flex;align-items:center;gap:.45em;height:56px;font-size:17px;
+           flex:0 0 auto;min-width:250px}
+  .readout .slot{font-variant-numeric:tabular-nums;display:inline-block;text-align:left}
+  .readout .w-deg{min-width:4.4em}
+  .readout .w-rad{min-width:3.2em}
+  .readout .w-num{min-width:4.2em}
+  .readout .dim{color:var(--ink-dim)}
+
+  .fbox{overflow-x:auto;overscroll-behavior-x:contain}
+  .frow{
+    display:grid;
+    grid-template-columns:4.4em .8em 7.4em .8em 8.6em .8em 4.4em 1.3em 5.6em;
+    align-items:center;column-gap:.2em;
+    font-size:18px;padding:11px 2px;min-height:70px;width:max-content;
+  }
+  .frow + .frow{border-top:1px solid var(--line)}
+  .fname{font-size:19px}
+  .frow.sin .fname,.frow.sin .exact{color:var(--sin)}
+  .frow.cos .fname,.frow.cos .exact{color:var(--cos)}
+  .frow.tan .fname,.frow.tan .exact{color:var(--tan)}
+  .op{color:var(--ink-dim);font-size:16px;text-align:center}
+  .op.soft{visibility:hidden}
+  .sym{font-size:12.5px;color:var(--ink-dim)}
+  .result{font-variant-numeric:tabular-nums;text-align:right}
+  .exact{font-size:19px;visibility:hidden}
+  .exact.on{visibility:visible}
+
+  .frac{display:inline-flex;flex-direction:column;align-items:center;line-height:1.15}
+  .frac .num{border-bottom:1.4px solid currentColor;padding:0 .38em .06em}
+  .frac .den{padding:.06em .38em 0}
+  .frac.live .num,.frac.live .den{font-variant-numeric:tabular-nums}
+  .kf{color:var(--ink-dim);margin-right:.18em;text-decoration:line-through;
+      text-decoration-color:var(--tan);text-decoration-thickness:1.5px}
+  .kf:empty{display:none}
+
+  .scale{border-top:1px solid var(--line);margin-top:10px;padding-top:12px}
+  .scale .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+  .scale input[type=number]{width:78px}
+  .scale button{min-height:38px;padding:6px 12px;font-variant-numeric:tabular-nums}
+  .scale button.on{border-color:var(--ang);background:rgba(165,140,236,.18)}
+  .note{color:var(--ink-dim);font-size:13.5px;margin:11px 0 0;max-width:70ch}
+  .note b{color:var(--ink);font-weight:600}
+
+  /* ---- Tabelle ---- */
+  .tablewrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin-top:14px;
+             border-top:1px solid var(--line);padding-top:12px}
+  table{border-collapse:collapse;font-size:13px;min-width:100%}
+  caption{text-align:left;color:var(--ink-dim);font-size:13px;padding:0 0 10px}
+  th,td{padding:7px 9px;text-align:center;border-bottom:1px solid var(--line);white-space:nowrap}
+  th.rowhead{text-align:left;color:var(--ink-dim);font-weight:500;position:sticky;left:0;
+             background:var(--panel);border-right:1px solid var(--line)}
+  tr.deg td{font-variant-numeric:tabular-nums}
+  tr.s td{color:var(--sin)}
+  tr.c td{color:var(--cos)}
+  tr.t td{color:var(--tan)}
+  td.active{background:rgba(165,140,236,.17)}
+  tr.deg td.active{box-shadow:inset 0 2px 0 var(--ang)}
+  tbody tr:last-child td,tbody tr:last-child th{border-bottom:none}
+
+  /* ---- Regentropfen ---- */
+  .stem{stroke:var(--sin);stroke-width:1;opacity:.42}
+  .dot{fill:var(--sin)}
+  @keyframes drip{from{opacity:0;transform:translateY(-18px)}to{opacity:1;transform:translateY(0)}}
+  .drop{animation:drip .3s ease-out}
+  @media (prefers-reduced-motion:reduce){.drop{animation:none}}
+
+  /* ---- Vorstufe ---- */
+  .stage{max-width:1180px;margin:0 auto}
+  .stage h2{font-family:"Iowan Old Style",Palatino,Georgia,serif;font-weight:600;font-size:19px;margin:0 0 4px}
+  .stage .intro{color:var(--ink-dim);margin:0 0 14px;max-width:66ch}
+  .stage-body{display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start}
+  .stage-draw{flex:1 1 460px;min-width:320px}
+  .stage-side{flex:1 1 260px;min-width:240px;display:flex;flex-direction:column;gap:14px}
+  .entry{display:flex;flex-wrap:wrap;gap:9px;align-items:center}
+  .entry label{color:var(--ink-dim);font-size:14px}
+  .stepper{display:inline-flex;align-items:stretch;background:var(--panel-2);
+           border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  .stepper button{border:none;border-radius:0;background:transparent;color:var(--ink);
+                  font-size:24px;line-height:1;padding:0 18px;min-width:52px}
+  .stepper button:hover{background:rgba(165,140,236,.24)}
+  .stepper button:active{background:rgba(165,140,236,.45)}
+  .stepper input[type=number]{border:none;border-radius:0;background:transparent;
+                              width:62px;text-align:center;padding:8px 0}
+  .stepper input[type=number]::-webkit-outer-spin-button,
+  .stepper input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+  .stepper input[type=number]{-moz-appearance:textfield;appearance:textfield}
+  .stepper .deg{align-self:center;color:var(--ink-dim);padding-right:10px;font-size:15px}
+  .hint{color:var(--ink-dim);font-size:13.5px;min-height:3.2em;margin:0}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;max-height:92px;overflow-y:auto;overscroll-behavior:contain}
+  .chip{background:var(--panel-2);border:1px solid var(--line);border-radius:999px;
+        padding:4px 9px 4px 11px;font-size:13px;font-variant-numeric:tabular-nums;min-height:34px;
+        display:inline-flex;align-items:center;gap:6px;cursor:pointer;color:var(--ink-dim);
+        touch-action:manipulation}
+  .chip:hover{color:var(--ink);border-color:var(--ang)}
+  .chip span{font-size:15px;line-height:1;opacity:.65}
+  .stage-checks{display:flex;flex-direction:column;gap:9px;padding-top:4px;border-top:1px solid var(--line)}
+
+  .gate{max-width:1180px;margin:20px auto 16px;padding:13px 16px;background:var(--panel);
+        border:1px solid var(--line);border-radius:12px;display:flex;flex-wrap:wrap;gap:6px 14px;align-items:baseline}
+  .gate .note{color:var(--ink-dim);font-size:13px;margin:0}
+  #advanced{max-width:1180px;margin:0 auto}
+
+  @media (max-width:700px){
+    body{padding:16px 12px 40px}
+    .readout{min-width:100%}
+  }
+</style>
+</head>
+<body>
+
+<button id="fsBtn" type="button">Vollbild</button>
+
+<header>
+  <h1>Vom rechtwinkligen Dreieck zum Einheitskreis</h1>
+  <p>Zeichne Dreiecke mit immer demselben Zeiger, aber verschiedenen Winkeln. Schau, wo die Spitzen landen.</p>
+</header>
+
+<!-- ===================== VORSTUFE ===================== -->
+<section class="stage">
+  <div class="panel">
+    <h2>Ein Zeiger der Länge 1, viele Winkel</h2>
+    <p class="intro">Der Zeiger startet auf der x-Achse und dreht sich um den Winkel α. Von seiner Spitze fällst du das Lot auf die x-Achse — fertig ist das rechtwinklige Dreieck. Trag mehrere Winkel nacheinander ein.</p>
+
+    <div class="stage-body">
+      <div class="stage-draw">
+        <svg id="stageSvg" viewBox="0 0 560 470" role="img" aria-label="Übereinandergelegte rechtwinklige Dreiecke">
+          <defs>
+            <marker id="ah3" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+              <path d="M0 1 L8 4.5 L0 8 z" fill="rgba(231,236,247,.55)"/>
+            </marker>
+          </defs>
+          <circle id="vCircle" cx="280" cy="285" r="170" fill="none"
+                  stroke="var(--ang)" stroke-width="1.6" stroke-dasharray="5 6" visibility="hidden"/>
+          <polyline id="vPath" fill="none" stroke="var(--ang)" stroke-width="1.8" visibility="hidden"/>
+          <line x1="60" y1="285" x2="540" y2="285" stroke="rgba(231,236,247,.45)" stroke-width="1.3" marker-end="url(#ah3)"/>
+          <line x1="280" y1="460" x2="280" y2="30" stroke="rgba(231,236,247,.45)" stroke-width="1.3" marker-end="url(#ah3)"/>
+          <text class="tick" x="450" y="303" text-anchor="middle">1</text>
+          <text class="tick" x="270" y="119" text-anchor="end">1</text>
+          <text class="tick" x="534" y="305" text-anchor="end">x</text>
+          <text class="tick" x="294" y="42">y</text>
+          <g id="vTris"></g>
+          <g id="vDots"></g>
+          <g id="vLbls"></g>
+          <circle cx="280" cy="285" r="3.4" fill="var(--ink-dim)"/>
+        </svg>
+      </div>
+
+      <div class="stage-side">
+        <div class="entry">
+          <label for="vInput">α =</label>
+          <div class="stepper">
+            <button id="vMinus" type="button" data-act="minus" aria-label="Einen Schritt zurück und Dreieck entfernen">−</button>
+            <input id="vInput" type="number" min="0" max="360" step="15" value="30" inputmode="decimal">
+            <span class="deg">°</span>
+            <button id="vPlus" type="button" data-act="plus" aria-label="Einen Schritt weiter und Dreieck zeichnen">+</button>
+          </div>
+          <button class="primary" type="button" data-act="add" id="vAdd">Dreieck zeichnen</button>
+        </div>
+        <div class="entry">
+          <label for="vStep">Schrittweite</label>
+          <select id="vStep">
+            <option value="5">5°</option>
+            <option value="10">10°</option>
+            <option value="15" selected>15°</option>
+            <option value="30">30°</option>
+            <option value="45">45°</option>
+            <option value="90">90°</option>
+          </select>
+        </div>
+        <p class="hint" id="vHint"></p>
+        <div class="chips" id="vChips"></div>
+        <div class="entry">
+          <button type="button" data-act="fill" id="vFill">In 15°-Schritten füllen</button>
+          <button type="button" data-act="undo" id="vUndo">Letztes zurück</button>
+          <button type="button" data-act="clear" id="vClear">Alles löschen</button>
+        </div>
+        <div class="stage-checks">
+          <label class="check"><input type="checkbox" id="vCbPath"> Spitzen verbinden</label>
+          <label class="check"><input type="checkbox" id="vCbCircle"> Kreis einblenden</label>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="gate">
+  <label class="check"><input type="checkbox" id="cbAdvanced"> Fortgeschrittener Kreis: Einheitskreis mit Sinus, Kosinus und Tangens</label>
+  <p class="note">Öffnet Kreis und Diagramm nebeneinander, dazu Formeln und Wertetabelle.</p>
+</div>
+
+<!-- ===================== FORTGESCHRITTEN ===================== -->
+<div id="advanced" hidden>
+
+  <div class="panel">
+    <svg id="main" viewBox="0 0 920 480" role="img" aria-label="Einheitskreis mit Sinuswelle daneben">
+      <defs>
+        <marker id="ah" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+          <path d="M0 1 L8 4.5 L0 8 z" fill="rgba(231,236,247,.55)"/>
+        </marker>
+        <clipPath id="clipCircle"><rect x="4" y="4" width="400" height="472"/></clipPath>
+        <clipPath id="clipWave"><rect x="432" y="40" width="480" height="380"/></clipPath>
+      </defs>
+
+      <g id="grid"></g>
+
+      <!-- Achsen Kreis -->
+      <line x1="20" y1="225" x2="400" y2="225" stroke="rgba(231,236,247,.45)" stroke-width="1.3" marker-end="url(#ah)"/>
+      <line x1="210" y1="410" x2="210" y2="46" stroke="rgba(231,236,247,.45)" stroke-width="1.3" marker-end="url(#ah)"/>
+      <text class="tick" x="394" y="245" text-anchor="end">x</text>
+      <text class="tick" x="224" y="56">y</text>
+      <text class="tick" id="tkX1" x="360" y="245" text-anchor="middle">1</text>
+      <text class="tick" id="tkXm1" x="60" y="245" text-anchor="middle">−1</text>
+      <text class="tick" id="tkY1" x="200" y="79" text-anchor="end">1</text>
+      <text class="tick" id="tkYm1" x="200" y="379" text-anchor="end">−1</text>
+      <circle cx="210" cy="225" r="150" fill="none" stroke="rgba(231,236,247,.3)" stroke-width="1.3"/>
+      <g id="snapdots"></g>
+
+      <g clip-path="url(#clipCircle)">
+        <line id="tanRay" x1="210" y1="225" x2="210" y2="225" stroke="var(--tan)" stroke-width="1" stroke-dasharray="3 4" opacity=".55" visibility="hidden"/>
+        <line id="tanSeg" x1="360" y1="225" x2="360" y2="225" stroke="var(--tan)" stroke-width="3.5" stroke-linecap="round" visibility="hidden"/>
+      </g>
+      <text id="tanLbl" class="lbl" fill="var(--tan)" visibility="hidden"></text>
+
+      <path id="arcFill" fill="rgba(165,140,236,.16)"/>
+      <path id="arc" fill="none" stroke="var(--ang)" stroke-width="2"/>
+      <text id="arcLbl" class="lbl" fill="var(--ang)" text-anchor="middle"></text>
+
+      <line id="legCos" stroke="var(--cos)" stroke-width="4" stroke-linecap="round"/>
+      <line id="legSin" stroke="var(--sin)" stroke-width="4" stroke-linecap="round"/>
+      <path id="rightAngle" fill="none" stroke="rgba(231,236,247,.5)" stroke-width="1.2"/>
+      <line id="hyp" stroke="var(--hyp)" stroke-width="2.2"/>
+      <text id="lblSin" class="lbl" fill="var(--sin)"></text>
+      <text id="lblCos" class="lbl" fill="var(--cos)" text-anchor="middle"></text>
+      <text id="lblHyp" class="lbl" fill="rgba(231,236,247,.75)" text-anchor="middle">r = 1</text>
+      <circle id="foot" r="3.2" fill="var(--ink-dim)"/>
+
+      <!-- Achsen Diagramm -->
+      <g id="wgrid"></g>
+      <line x1="424" y1="225" x2="912" y2="225" stroke="rgba(231,236,247,.45)" stroke-width="1.3" marker-end="url(#ah)"/>
+      <line x1="440" y1="410" x2="440" y2="46" stroke="rgba(231,236,247,.45)" stroke-width="1.3" marker-end="url(#ah)"/>
+      <text class="tick" x="432" y="79" text-anchor="end">1</text>
+      <text class="tick" x="432" y="379" text-anchor="end">−1</text>
+      <g id="wticks"></g>
+
+      <g clip-path="url(#clipWave)">
+        <path id="wTan" fill="none" stroke="var(--tan)" stroke-width="2.2" visibility="hidden"/>
+        <path id="wCos" fill="none" stroke="var(--cos)" stroke-width="2.6" visibility="hidden"/>
+        <path id="wSin" fill="none" stroke="var(--sin)" stroke-width="2.6" visibility="hidden"/>
+        <g id="drops"></g>
+        <line id="liveStem" stroke="var(--sin)" stroke-width="1.2" stroke-dasharray="3 3" opacity=".8"/>
+        <circle id="wPt" r="6" fill="none" stroke="var(--sin)" stroke-width="2.5"/>
+      </g>
+
+      <!-- Projektionslinie vom Kreis ins Diagramm -->
+      <line id="proj" stroke="var(--sin)" stroke-width="1.2" stroke-dasharray="5 5" opacity=".7"/>
+      <circle id="point" class="grab" r="8" fill="var(--ang)" stroke="var(--ground)" stroke-width="2.5" tabindex="0"/>
+      <text id="lblP" class="lbl" fill="var(--ink)"></text>
+    </svg>
+
+    <div class="controls">
+      <div class="readout math">
+        <span class="dim">α =</span><b class="slot w-deg" id="rdDeg">30,0°</b>
+        <span class="dim">=</span><b class="slot w-rad" id="rdRad">π/6</b>
+        <span class="dim">≈</span><b class="slot w-num" id="rdRadNum">0,5236</b>
+      </div>
+      <input id="slider" type="range" min="0" max="360" step="0.2" value="30" aria-label="Winkel in Grad">
+      <label class="check"><input type="checkbox" id="cbSnap" checked> Magnete (Einrasten)</label>
+      <label class="check tan"><input type="checkbox" id="cbTanSeg"> Tangens-Strecke bei x = r</label>
+    </div>
+
+    <div class="controls">
+      <label class="check" for="dropStep" style="gap:9px">Punkt fällt alle
+        <select id="dropStep">
+          <option value="10">10°</option>
+          <option value="15" selected>15°</option>
+          <option value="30">30°</option>
+          <option value="45">45°</option>
+        </select>
+      </label>
+      <button type="button" id="dropClear">Punkte löschen</button>
+      <label class="check sin"><input type="checkbox" id="cbSin"> Sinus-Graph einblenden</label>
+      <label class="check cos"><input type="checkbox" id="cbCos"> Kosinus-Graph</label>
+      <label class="check tan"><input type="checkbox" id="cbTan"> Tangenskurve</label>
+    </div>
+    <p class="note">Dreh am Kreis: jedes Mal, wenn du eine Marke überschreitest, fällt ein Punkt auf die Höhe des Zeigers ins Diagramm. Schaltest du den Graphen ein, verschwinden Punkte und Stützlinien — die Kurve war die ganze Zeit schon da.</p>
+
+    <div class="scale" id="scaleBox">
+      <div class="row">
+        <label for="rLen" style="color:var(--ink-dim);font-size:14px">Zeigerlänge r =</label>
+        <input id="rLen" type="number" min="0.1" max="99" step="1" value="1" inputmode="decimal">
+        <button type="button" data-r="1" class="on">1</button>
+        <button type="button" data-r="2">2</button>
+        <button type="button" data-r="3">3</button>
+        <button type="button" data-r="5">5</button>
+      </div>
+      <p class="note">Warum genügt der Einheitskreis? Streckst du den Zeiger vom Ursprung aus um den Faktor r, wachsen beide Katheten um genau denselben Faktor mit — das sagen die Strahlensätze, alle diese Dreiecke sind ähnlich. In den Brüchen steht r deshalb oben <b>und</b> unten und kürzt sich weg. Der Funktionswert hängt nur vom Winkel ab, nie von der Größe des Dreiecks. Und für r = 1 wird der Nenner bei Sinus und Kosinus zu 1: dann ist die Kathete selbst schon der Funktionswert.</p>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="fbox">
+      <div class="frow sin">
+        <span class="fname math"><span class="var">sin</span> α</span>
+        <span class="op">=</span>
+        <span class="frac sym"><span class="num">Gegenkathete</span><span class="den">Hypotenuse</span></span>
+        <span class="op">=</span>
+        <span class="frac live math">
+          <span class="num"><span class="kf" id="sin-kz"></span><span id="sin-z">0,5000</span></span>
+          <span class="den"><span class="kf" id="sin-kn"></span><span id="sin-n">1</span></span>
+        </span>
+        <span class="op soft" id="sin-eqex">=</span>
+        <span class="exact math" id="sin-ex"></span>
+        <span class="op">≈</span>
+        <span class="result math" id="sin-val">0,5000</span>
+      </div>
+      <div class="frow cos">
+        <span class="fname math"><span class="var">cos</span> α</span>
+        <span class="op">=</span>
+        <span class="frac sym"><span class="num">Ankathete</span><span class="den">Hypotenuse</span></span>
+        <span class="op">=</span>
+        <span class="frac live math">
+          <span class="num"><span class="kf" id="cos-kz"></span><span id="cos-z">0,8660</span></span>
+          <span class="den"><span class="kf" id="cos-kn"></span><span id="cos-n">1</span></span>
+        </span>
+        <span class="op soft" id="cos-eqex">=</span>
+        <span class="exact math" id="cos-ex"></span>
+        <span class="op">≈</span>
+        <span class="result math" id="cos-val">0,8660</span>
+      </div>
+      <div class="frow tan">
+        <span class="fname math"><span class="var">tan</span> α</span>
+        <span class="op">=</span>
+        <span class="frac sym"><span class="num">Gegenkathete</span><span class="den">Ankathete</span></span>
+        <span class="op">=</span>
+        <span class="frac live math">
+          <span class="num"><span class="kf" id="tan-kz"></span><span id="tan-z">0,5000</span></span>
+          <span class="den"><span class="kf" id="tan-kn"></span><span id="tan-n">0,8660</span></span>
+        </span>
+        <span class="op soft" id="tan-eqex">=</span>
+        <span class="exact math" id="tan-ex"></span>
+        <span class="op">≈</span>
+        <span class="result math" id="tan-val">0,5774</span>
+      </div>
+    </div>
+
+    <div class="tablewrap">
+      <table id="tbl">
+        <caption>Wertetabelle der besonderen Winkel — zum Nachschlagen</caption>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  const NS = 'http://www.w3.org/2000/svg';
+  const $ = id => document.getElementById(id);
+  const rad = d => d*Math.PI/180;
+  const norm = d => ((d % 360) + 360) % 360;
+
+  function fmt(v){
+    if(!isFinite(v)) return '∞';
+    if(Math.abs(v) < 5e-5) v = 0;
+    return v.toFixed(4).replace('.', ',');
+  }
+  function fracHTML(n, d, cls){
+    cls = cls || '';
+    if(!d) return '<span class="'+cls+'">'+n+'</span>';
+    return '<span class="frac '+cls+'"><span class="num">'+n+'</span><span class="den">'+d+'</span></span>';
+  }
+  function inlineExact(pair){ return !pair ? 'n. def.' : (pair[1] ? pair[0]+'/'+pair[1] : pair[0]); }
+
+  /* ---------- Daten ---------- */
+  const DEGS = [0,30,45,60,90,120,135,150,180,210,225,240,270,300,315,330,360];
+  const EXACT = {
+    0:   {sin:['0',''],    cos:['1',''],     tan:['0','']},
+    30:  {sin:['1','2'],   cos:['√3','2'],   tan:['√3','3']},
+    45:  {sin:['√2','2'],  cos:['√2','2'],   tan:['1','']},
+    60:  {sin:['√3','2'],  cos:['1','2'],    tan:['√3','']},
+    90:  {sin:['1',''],    cos:['0',''],     tan:null},
+    120: {sin:['√3','2'],  cos:['−1','2'],   tan:['−√3','']},
+    135: {sin:['√2','2'],  cos:['−√2','2'],  tan:['−1','']},
+    150: {sin:['1','2'],   cos:['−√3','2'],  tan:['−√3','3']},
+    180: {sin:['0',''],    cos:['−1',''],    tan:['0','']},
+    210: {sin:['−1','2'],  cos:['−√3','2'],  tan:['√3','3']},
+    225: {sin:['−√2','2'], cos:['−√2','2'],  tan:['1','']},
+    240: {sin:['−√3','2'], cos:['−1','2'],   tan:['√3','']},
+    270: {sin:['−1',''],   cos:['0',''],     tan:null},
+    300: {sin:['−√3','2'], cos:['1','2'],    tan:['−√3','']},
+    315: {sin:['−√2','2'], cos:['√2','2'],   tan:['−1','']},
+    330: {sin:['−1','2'],  cos:['√3','2'],   tan:['−√3','3']},
+    360: {sin:['0',''],    cos:['1',''],     tan:['0','']}
+  };
+  const RADS = {
+    0:['0',''], 30:['π','6'], 45:['π','4'], 60:['π','3'], 90:['π','2'],
+    120:['2π','3'], 135:['3π','4'], 150:['5π','6'], 180:['π',''],
+    210:['7π','6'], 225:['5π','4'], 240:['4π','3'], 270:['3π','2'],
+    300:['5π','3'], 315:['7π','4'], 330:['11π','6'], 360:['2π','']
+  };
+  const SNAPS = DEGS.slice(0,16);
+  const TOL = 4.2;
+
+  /* ---------- Geometrie: ein gemeinsames Koordinatensystem ---------- */
+  const CX = 210, CY = 225, R = 150;          /* Kreis */
+  const WX0 = 440, WW = 450, WA = R;          /* Diagramm, gleiche Amplitude wie der Radius */
+  const px = d => CX + R*Math.cos(rad(d));
+  const py = d => CY - R*Math.sin(rad(d));
+  const wx = d => WX0 + d/360*WW;
+  const wy = v => CY - v*WA;
+
+  /* ---------- statisches Beiwerk ---------- */
+  (function(){
+    let g = '';
+    for(let i=-1.5; i<=1.5001; i+=0.5){
+      if(Math.abs(i) < 1e-9) continue;
+      const p = CX + i*R, q = CY - i*R;
+      if(p > 25 && p < 400) g += '<line x1="'+p+'" y1="60" x2="'+p+'" y2="400" stroke="rgba(231,236,247,.06)" stroke-width="1"/>';
+      g += '<line x1="30" y1="'+q+'" x2="395" y2="'+q+'" stroke="rgba(231,236,247,.06)" stroke-width="1"/>';
+    }
+    $('grid').innerHTML = g;
+    $('snapdots').innerHTML = SNAPS.map(function(d){
+      return '<circle cx="'+px(d).toFixed(2)+'" cy="'+py(d).toFixed(2)+'" r="2.4" fill="rgba(231,236,247,.42)"/>';
+    }).join('');
+
+    let wg = '', wt = '';
+    [90,180,270,360].forEach(function(d){
+      const x = wx(d);
+      wg += '<line x1="'+x.toFixed(1)+'" y1="55" x2="'+x.toFixed(1)+'" y2="400" stroke="rgba(231,236,247,.08)" stroke-width="1"/>';
+      wt += '<text class="tick" x="'+x.toFixed(1)+'" y="424" text-anchor="middle">'+d+'°</text>';
+      const r = RADS[d];
+      wt += '<text class="tick" x="'+x.toFixed(1)+'" y="443" text-anchor="middle" fill="rgba(231,236,247,.42)">'+(r[1]? r[0]+'/'+r[1] : r[0])+'</text>';
+    });
+    [1,-1].forEach(function(v){
+      wg += '<line x1="440" y1="'+wy(v)+'" x2="900" y2="'+wy(v)+'" stroke="rgba(231,236,247,.08)" stroke-width="1" stroke-dasharray="3 5"/>';
+    });
+    $('wgrid').innerHTML = wg;
+    $('wticks').innerHTML = wt;
+
+    function path(fn){
+      let d = '';
+      for(let a=0; a<=360; a+=1) d += (a===0?'M':'L') + wx(a).toFixed(2) + ' ' + wy(fn(rad(a))).toFixed(2);
+      return d;
+    }
+    $('wSin').setAttribute('d', path(Math.sin));
+    $('wCos').setAttribute('d', path(Math.cos));
+    let dt = '', pen = false;
+    for(let a=0; a<=360; a+=0.5){
+      const v = Math.tan(rad(a));
+      if(!isFinite(v) || Math.abs(v) > 1.15){ pen = false; continue; }
+      dt += (pen?'L':'M') + wx(a).toFixed(2) + ' ' + wy(v).toFixed(2);
+      pen = true;
+    }
+    $('wTan').setAttribute('d', dt);
+  })();
+
+  (function(){
+    const rows = [
+      {cls:'deg', head:'α in Grad',     cell:d => d+'°'},
+      {cls:'rad', head:'α im Bogenmaß', cell:d => fracHTML(RADS[d][0], RADS[d][1], 'math')},
+      {cls:'s',   head:'sin α',         cell:d => fracHTML(EXACT[d].sin[0], EXACT[d].sin[1], 'math')},
+      {cls:'c',   head:'cos α',         cell:d => fracHTML(EXACT[d].cos[0], EXACT[d].cos[1], 'math')},
+      {cls:'t',   head:'tan α',         cell:d => EXACT[d].tan ? fracHTML(EXACT[d].tan[0], EXACT[d].tan[1], 'math') : '<span style="opacity:.65">n. def.</span>'}
+    ];
+    let html = '<tbody>';
+    rows.forEach(function(r){
+      html += '<tr class="'+r.cls+'"><th class="rowhead">'+r.head+'</th>';
+      DEGS.forEach(function(d){ html += '<td data-deg="'+d+'">'+r.cell(d)+'</td>'; });
+      html += '</tr>';
+    });
+    $('tbl').insertAdjacentHTML('beforeend', html + '</tbody>');
+  })();
+  const CELLS = Array.prototype.slice.call(document.querySelectorAll('#tbl td'));
+
+  /* ---------- Zustand ---------- */
+  let angle = 30;
+  let kVal = 1;
+  const kStr = () => String(Math.round(kVal*100)/100).replace('.', ',');
+  const kPre = () => kVal === 1 ? '' : kStr() + ' · ';
+
+  function snapped(a){
+    for(let i=0;i<SNAPS.length;i++){
+      let diff = Math.abs(a - SNAPS[i]);
+      if(diff > 180) diff = 360 - diff;
+      if(diff < 1e-7) return SNAPS[i];
+    }
+    return null;
+  }
+  function applySnap(a){
+    if(!$('cbSnap').checked) return a;
+    for(let i=0;i<SNAPS.length;i++){
+      let diff = Math.abs(a - SNAPS[i]);
+      if(diff > 180) diff = 360 - diff;
+      if(diff <= TOL) return SNAPS[i];
+    }
+    return a;
+  }
+
+  /* ---------- Regentropfen ---------- */
+  const dropEls = new Map();
+
+  function addDrop(m){
+    m = Math.round(norm(m)*10)/10;
+    if(dropEls.has(m)) return;
+    const x = wx(m), y = wy(Math.sin(rad(m)));
+    const g = document.createElementNS(NS, 'g');
+    g.setAttribute('class', 'drop');
+    const st = document.createElementNS(NS, 'line');
+    st.setAttribute('class', 'stem');
+    st.setAttribute('x1', x.toFixed(2)); st.setAttribute('y1', CY);
+    st.setAttribute('x2', x.toFixed(2)); st.setAttribute('y2', y.toFixed(2));
+    const c = document.createElementNS(NS, 'circle');
+    c.setAttribute('class', 'dot');
+    c.setAttribute('cx', x.toFixed(2)); c.setAttribute('cy', y.toFixed(2)); c.setAttribute('r', 4.5);
+    g.appendChild(st); g.appendChild(c);
+    $('drops').appendChild(g);
+    dropEls.set(m, g);
+  }
+
+  function clearDrops(){
+    $('drops').textContent = '';
+    dropEls.clear();
+  }
+
+  function recordDrops(prev, next){
+    const step = parseFloat($('dropStep').value) || 15;
+    let d = next - prev;
+    if(d > 180) d -= 360; else if(d < -180) d += 360;
+    for(let m = 0; m < 360; m += step){
+      if(Math.abs(next - m) < 0.001 || Math.abs(next - m - 360) < 0.001){ addDrop(m); continue; }
+      if(d === 0) continue;
+      let rel = norm((m - prev) * (d > 0 ? 1 : -1));
+      if(rel > 0 && rel <= Math.abs(d) + 1e-9) addDrop(m);
+    }
+  }
+
+  /* ---------- Zeichnen ---------- */
+  function setAngle(a, fromSlider, silent){
+    const prev = angle;
+    angle = norm(a);
+    if(!fromSlider) $('slider').value = angle.toFixed(1);
+    if(!silent) recordDrops(prev, angle);
+    draw();
+  }
+
+  function draw(){
+    const a = angle;
+    const s = Math.sin(rad(a)), c = Math.cos(rad(a));
+    const P = {x: px(a), y: py(a)};
+    const F = {x: px(a), y: CY};
+    const snap = snapped(a);
+    const ex = snap !== null ? EXACT[snap] : null;
+    const k = kVal, pre = kPre();
+
+    $('legCos').setAttribute('x1', CX); $('legCos').setAttribute('y1', CY);
+    $('legCos').setAttribute('x2', F.x); $('legCos').setAttribute('y2', CY);
+    $('legSin').setAttribute('x1', F.x); $('legSin').setAttribute('y1', F.y);
+    $('legSin').setAttribute('x2', P.x); $('legSin').setAttribute('y2', P.y);
+    $('hyp').setAttribute('x1', CX); $('hyp').setAttribute('y1', CY);
+    $('hyp').setAttribute('x2', P.x); $('hyp').setAttribute('y2', P.y);
+    $('point').setAttribute('cx', P.x); $('point').setAttribute('cy', P.y);
+    $('foot').setAttribute('cx', F.x); $('foot').setAttribute('cy', F.y);
+
+    if(Math.abs(s) > 0.06 && Math.abs(c) > 0.06){
+      const dx = c >= 0 ? -11 : 11, dy = s >= 0 ? -11 : 11;
+      $('rightAngle').setAttribute('d','M '+(F.x+dx)+' '+F.y+' L '+(F.x+dx)+' '+(F.y+dy)+' L '+F.x+' '+(F.y+dy));
+      $('rightAngle').setAttribute('visibility','visible');
+    } else $('rightAngle').setAttribute('visibility','hidden');
+
+    const sOff = c >= 0 ? 12 : -12;
+    const lS = $('lblSin');
+    lS.setAttribute('x', F.x + sOff);
+    lS.setAttribute('y', (F.y + P.y)/2 + 4);
+    lS.setAttribute('text-anchor', c >= 0 ? 'start' : 'end');
+    lS.innerHTML = '<tspan>'+(k === 1 ? 'sin α = ' + fmt(s) : 'Gegenkathete = ' + fmt(k*s))+'</tspan>' +
+      (ex ? '<tspan x="'+(F.x+sOff)+'" dy="16">= '+pre+inlineExact(ex.sin)+'</tspan>' : '');
+    lS.setAttribute('visibility', Math.abs(s) > 0.04 ? 'visible' : 'hidden');
+
+    const cMid = (CX + F.x)/2;
+    const lC = $('lblCos');
+    lC.setAttribute('x', cMid);
+    lC.setAttribute('y', s >= 0 ? CY + 20 : CY - 12);
+    lC.innerHTML = '<tspan>'+(k === 1 ? 'cos α = ' + fmt(c) : 'Ankathete = ' + fmt(k*c))+'</tspan>' +
+      (ex ? '<tspan x="'+cMid+'" dy="'+(s>=0?16:-16)+'">= '+pre+inlineExact(ex.cos)+'</tspan>' : '');
+    lC.setAttribute('visibility', Math.abs(c) > 0.04 ? 'visible' : 'hidden');
+
+    const hL = $('lblHyp');
+    hL.textContent = 'r = ' + kStr();
+    hL.setAttribute('x', CX + (P.x-CX)*0.55 + (s>=0? -16 : 16));
+    hL.setAttribute('y', CY + (P.y-CY)*0.55 - 8);
+
+    const lP = $('lblP');
+    lP.setAttribute('x', P.x + (c>=0? 13 : -13));
+    lP.setAttribute('y', P.y + (s>=0? -12 : 20));
+    lP.setAttribute('text-anchor', c>=0 ? 'start' : 'end');
+    lP.textContent = 'P(' + fmt(k*c) + ' | ' + fmt(k*s) + ')';
+
+    $('tkX1').textContent = kStr();
+    $('tkXm1').textContent = '−' + kStr();
+    $('tkY1').textContent = kStr();
+    $('tkYm1').textContent = '−' + kStr();
+
+    const ar = 42, large = a > 180 ? 1 : 0;
+    const ax = CX + ar*Math.cos(rad(a)), ay = CY - ar*Math.sin(rad(a));
+    const dArc = 'M '+(CX+ar)+' '+CY+' A '+ar+' '+ar+' 0 '+large+' 0 '+ax.toFixed(2)+' '+ay.toFixed(2);
+    $('arc').setAttribute('d', a < 0.05 ? '' : dArc);
+    $('arcFill').setAttribute('d', a < 0.05 ? '' : dArc + ' L '+CX+' '+CY+' Z');
+    const half = rad(a/2);
+    $('arcLbl').setAttribute('x', CX + (ar+20)*Math.cos(half));
+    $('arcLbl').setAttribute('y', CY - (ar+20)*Math.sin(half) + 5);
+    $('arcLbl').textContent = 'α = ' + (Math.round(a*10)/10).toString().replace('.',',') + '°';
+
+    const showTan = $('cbTanSeg').checked && Math.abs(c) > 1e-6;
+    const t = s/c;
+    if(showTan){
+      const ty = CY - R*t;
+      $('tanSeg').setAttribute('x1', CX+R); $('tanSeg').setAttribute('y1', CY);
+      $('tanSeg').setAttribute('x2', CX+R); $('tanSeg').setAttribute('y2', ty);
+      $('tanSeg').setAttribute('visibility','visible');
+      $('tanRay').setAttribute('x1', CX); $('tanRay').setAttribute('y1', CY);
+      $('tanRay').setAttribute('x2', CX+R); $('tanRay').setAttribute('y2', ty);
+      $('tanRay').setAttribute('visibility','visible');
+      $('tanLbl').setAttribute('x', CX + R + 10);
+      $('tanLbl').setAttribute('y', Math.max(20, Math.min(410, (CY+ty)/2)));
+      $('tanLbl').textContent = (k === 1 ? 'tan α = ' + fmt(t) : 'Länge = ' + fmt(k*t));
+      $('tanLbl').setAttribute('visibility', (ty > 12 && ty < 412) ? 'visible' : 'hidden');
+    } else {
+      $('tanSeg').setAttribute('visibility','hidden');
+      $('tanRay').setAttribute('visibility','hidden');
+      $('tanLbl').setAttribute('visibility','hidden');
+    }
+
+    /* Diagramm: laufender Punkt, Stützlinie, Projektion */
+    const X = wx(a), Y = wy(s);
+    $('wPt').setAttribute('cx', X); $('wPt').setAttribute('cy', Y);
+    $('liveStem').setAttribute('x1', X); $('liveStem').setAttribute('y1', CY);
+    $('liveStem').setAttribute('x2', X); $('liveStem').setAttribute('y2', Y);
+    $('proj').setAttribute('x1', P.x); $('proj').setAttribute('y1', P.y);
+    $('proj').setAttribute('x2', X);   $('proj').setAttribute('y2', Y);
+
+    /* Formeln */
+    ['sin','cos','tan'].forEach(function(n){
+      $(n+'-kz').textContent = pre;
+      $(n+'-kn').textContent = pre;
+    });
+    $('sin-z').textContent = fmt(s);  $('sin-n').textContent = '1';  $('sin-val').textContent = fmt(s);
+    $('cos-z').textContent = fmt(c);  $('cos-n').textContent = '1';  $('cos-val').textContent = fmt(c);
+    $('tan-z').textContent = fmt(s);  $('tan-n').textContent = fmt(c);
+    $('tan-val').textContent = Math.abs(c) < 1e-9 ? 'n. def.' : fmt(t);
+
+    setExact('sin', ex ? ex.sin : undefined);
+    setExact('cos', ex ? ex.cos : undefined);
+    setExact('tan', ex ? ex.tan : undefined);
+
+    $('rdDeg').textContent = (Math.round(a*10)/10).toFixed(1).replace('.',',') + '°';
+    const rdv = snap !== null ? RADS[snap] : null;
+    $('rdRad').innerHTML = rdv ? fracHTML(rdv[0], rdv[1], 'math') : '<span class="dim">—</span>';
+    $('rdRadNum').textContent = fmt(rad(a));
+
+    CELLS.forEach(function(td){
+      const d = +td.getAttribute('data-deg');
+      td.classList.toggle('active', snap !== null && (d === snap || (snap === 0 && d === 360)));
+    });
+  }
+
+  function setExact(name, pair){
+    const box = $(name+'-ex'), eq = $(name+'-eqex');
+    if(pair === undefined){ box.classList.remove('on'); eq.classList.add('soft'); return; }
+    box.innerHTML = pair ? fracHTML(pair[0], pair[1], '') : 'n. def.';
+    box.classList.add('on'); eq.classList.remove('soft');
+  }
+
+  /* ---------- Interaktion Kreis ---------- */
+  const svg = $('main');
+  function toSvg(evt){
+    const pt = svg.createSVGPoint();
+    pt.x = evt.clientX; pt.y = evt.clientY;
+    return pt.matrixTransform(svg.getScreenCTM().inverse());
+  }
+  function fromPointer(evt){
+    const p = toSvg(evt);
+    if(p.x > 410) return;                      /* rechte Hälfte ist das Diagramm */
+    setAngle(applySnap(norm(Math.atan2(CY - p.y, p.x - CX) * 180/Math.PI)));
+  }
+  let dragging = false;
+  svg.addEventListener('pointerdown', function(e){
+    const p = toSvg(e);
+    if(p.x > 410) return;
+    dragging = true;
+    svg.setPointerCapture(e.pointerId);
+    fromPointer(e);
+    e.preventDefault();
+  });
+  svg.addEventListener('pointermove', function(e){ if(dragging) fromPointer(e); });
+  svg.addEventListener('pointerup', function(e){
+    dragging = false;
+    if(svg.hasPointerCapture(e.pointerId)) svg.releasePointerCapture(e.pointerId);
+  });
+  svg.addEventListener('pointercancel', function(){ dragging = false; });
+  $('point').addEventListener('keydown', function(e){
+    const st = e.shiftKey ? 0.5 : 1;
+    if(e.key === 'ArrowRight' || e.key === 'ArrowUp'){ setAngle(angle + st); e.preventDefault(); }
+    if(e.key === 'ArrowLeft'  || e.key === 'ArrowDown'){ setAngle(angle - st); e.preventDefault(); }
+  });
+  $('slider').addEventListener('input', function(e){ setAngle(applySnap(parseFloat(e.target.value)), true); });
+  $('cbSnap').addEventListener('change', function(){ if(this.checked) setAngle(applySnap(angle), false, true); });
+  $('cbTanSeg').addEventListener('change', draw);
+
+  /* ---------- Diagramm-Schalter ---------- */
+  function syncGraphs(){
+    const sinOn = $('cbSin').checked;
+    $('wSin').setAttribute('visibility', sinOn ? 'visible' : 'hidden');
+    $('drops').setAttribute('visibility', sinOn ? 'hidden' : 'visible');
+    $('liveStem').setAttribute('visibility', sinOn ? 'hidden' : 'visible');
+    $('wCos').setAttribute('visibility', $('cbCos').checked ? 'visible' : 'hidden');
+    $('wTan').setAttribute('visibility', $('cbTan').checked ? 'visible' : 'hidden');
+  }
+  ['cbSin','cbCos','cbTan'].forEach(function(id){ $(id).addEventListener('change', syncGraphs); });
+  $('dropClear').addEventListener('click', clearDrops);
+  $('dropStep').addEventListener('change', clearDrops);
+
+  /* ---------- Zeigerlänge ---------- */
+  function setK(v){
+    if(!isFinite(v) || v <= 0) v = 1;
+    kVal = Math.round(Math.min(99, v)*100)/100;
+    Array.prototype.forEach.call($('scaleBox').querySelectorAll('button'), function(b){
+      b.classList.toggle('on', parseFloat(b.getAttribute('data-r')) === kVal);
+    });
+    draw();
+  }
+  $('scaleBox').addEventListener('click', function(e){
+    const b = e.target.closest('button[data-r]');
+    if(!b) return;
+    $('rLen').value = b.getAttribute('data-r');
+    setK(parseFloat(b.getAttribute('data-r')));
+  });
+  $('rLen').addEventListener('input', function(){ setK(parseFloat(String(this.value).replace(',', '.'))); });
+
+  $('cbAdvanced').addEventListener('change', function(){
+    $('advanced').hidden = !this.checked;
+    if(this.checked) draw();
+  });
+
+  $('fsBtn').addEventListener('click', function(){
+    const el = document.documentElement;
+    const active = document.fullscreenElement || document.webkitFullscreenElement;
+    try{
+      if(active){ (document.exitFullscreen || document.webkitExitFullscreen).call(document); }
+      else if(el.requestFullscreen){ el.requestFullscreen(); this.textContent = 'Vollbild aus'; return; }
+      else if(el.webkitRequestFullscreen){ el.webkitRequestFullscreen(); this.textContent = 'Vollbild aus'; return; }
+    }catch(e){}
+    this.textContent = document.body.classList.toggle('fs') ? 'Vollbild aus' : 'Vollbild';
+  });
+
+  /* ===================== VORSTUFE ===================== */
+  const VCX = 280, VCY = 285, VR = 170;
+  const vpx = d => VCX + VR*Math.cos(rad(d));
+  const vpy = d => VCY - VR*Math.sin(rad(d));
+  let vList = [];
+
+  function vRender(msg){
+    let tris = '', dots = '', lbls = '';
+    vList.forEach(function(d, i){
+      const last = (i === vList.length - 1);
+      const X = vpx(d), Y = vpy(d), FX = X;
+      const s = Math.sin(rad(d)), c = Math.cos(rad(d));
+      if(!last){
+        tris += '<g opacity=".26">'
+              + '<line x1="'+VCX+'" y1="'+VCY+'" x2="'+FX.toFixed(1)+'" y2="'+VCY+'" stroke="var(--cos)" stroke-width="2"/>'
+              + '<line x1="'+FX.toFixed(1)+'" y1="'+VCY+'" x2="'+X.toFixed(1)+'" y2="'+Y.toFixed(1)+'" stroke="var(--sin)" stroke-width="2"/>'
+              + '<line x1="'+VCX+'" y1="'+VCY+'" x2="'+X.toFixed(1)+'" y2="'+Y.toFixed(1)+'" stroke="var(--hyp)" stroke-width="1.3"/>'
+              + '</g>';
+        dots += '<circle cx="'+X.toFixed(1)+'" cy="'+Y.toFixed(1)+'" r="4" fill="var(--ang)" opacity=".55"/>';
+        return;
+      }
+      tris += '<line x1="'+VCX+'" y1="'+VCY+'" x2="'+FX.toFixed(1)+'" y2="'+VCY+'" stroke="var(--cos)" stroke-width="4.5" stroke-linecap="round"/>'
+            + '<line x1="'+FX.toFixed(1)+'" y1="'+VCY+'" x2="'+X.toFixed(1)+'" y2="'+Y.toFixed(1)+'" stroke="var(--sin)" stroke-width="4.5" stroke-linecap="round"/>'
+            + '<line x1="'+VCX+'" y1="'+VCY+'" x2="'+X.toFixed(1)+'" y2="'+Y.toFixed(1)+'" stroke="var(--hyp)" stroke-width="2.4"/>';
+      if(Math.abs(s) > 0.06 && Math.abs(c) > 0.06){
+        const dx = c >= 0 ? -12 : 12, dy = s >= 0 ? -12 : 12;
+        tris += '<path d="M '+(FX+dx).toFixed(1)+' '+VCY+' L '+(FX+dx).toFixed(1)+' '+(VCY+dy)+' L '+FX.toFixed(1)+' '+(VCY+dy)+'" fill="none" stroke="rgba(231,236,247,.5)" stroke-width="1.2"/>';
+      }
+      const ar = 40, large = d > 180 ? 1 : 0;
+      if(d > 0.05){
+        tris += '<path d="M '+(VCX+ar)+' '+VCY+' A '+ar+' '+ar+' 0 '+large+' 0 '
+              + (VCX+ar*Math.cos(rad(d))).toFixed(1)+' '+(VCY-ar*Math.sin(rad(d))).toFixed(1)+'" fill="none" stroke="var(--ang)" stroke-width="2"/>';
+        lbls += '<text class="lbl" fill="var(--ang)" text-anchor="middle" x="'+(VCX+(ar+20)*Math.cos(rad(d/2))).toFixed(1)
+              + '" y="'+(VCY-(ar+20)*Math.sin(rad(d/2))+5).toFixed(1)+'">α = '+String(d).replace('.',',')+'°</text>';
+      }
+      dots += '<circle cx="'+X.toFixed(1)+'" cy="'+Y.toFixed(1)+'" r="6.5" fill="var(--ang)" stroke="var(--ground)" stroke-width="2"/>';
+      if(Math.abs(s) > 0.04){
+        const off = c >= 0 ? 12 : -12;
+        lbls += '<text class="lbl" fill="var(--sin)" x="'+(FX+off).toFixed(1)+'" y="'+((VCY+Y)/2+4).toFixed(1)
+              + '" text-anchor="'+(c>=0?'start':'end')+'">Höhe = '+fmt(s)+'</text>';
+      }
+      if(Math.abs(c) > 0.04){
+        lbls += '<text class="lbl" fill="var(--cos)" text-anchor="middle" x="'+((VCX+FX)/2).toFixed(1)
+              + '" y="'+(s>=0 ? VCY+21 : VCY-12)+'">Breite = '+fmt(c)+'</text>';
+      }
+      lbls += '<text class="lbl" fill="rgba(231,236,247,.75)" text-anchor="middle" x="'
+            + (VCX+(X-VCX)*0.5+(s>=0?-20:20)).toFixed(1)+'" y="'+(VCY+(Y-VCY)*0.5-9).toFixed(1)+'">Zeiger = 1</text>';
+    });
+
+    $('vTris').innerHTML = tris;
+    $('vDots').innerHTML = dots;
+    $('vLbls').innerHTML = lbls;
+
+    $('vPath').setAttribute('points', vList.slice().sort(function(a,b){return a-b;}).map(function(d){
+      return vpx(d).toFixed(1)+','+vpy(d).toFixed(1);
+    }).join(' '));
+
+    $('vChips').innerHTML = vList.map(function(d, i){
+      return '<button class="chip" type="button" data-i="'+i+'" title="Dieses Dreieck entfernen">'
+           + String(d).replace('.',',') + '°<span>×</span></button>';
+    }).join('');
+
+    const n = vList.length;
+    if(msg) $('vHint').textContent = msg;
+    else if(n === 0) $('vHint').textContent = 'Trag einen Winkel ein und zeichne das erste Dreieck.';
+    else if(n < 4) $('vHint').textContent = n === 1 ? '1 Dreieck. Nimm noch einen anderen Winkel dazu.' : n + ' Dreiecke. Wo liegen die Spitzen?';
+    else $('vHint').textContent = n + ' Dreiecke. Jede Spitze ist genau 1 vom Ursprung entfernt — deshalb liegen alle auf einem Kreisbogen.';
+  }
+
+  function vStepSize(){ return parseFloat($('vStep').value) || 15; }
+  function vNorm(d){ return Math.round(norm(d)*10)/10; }
+  function vHas(d){ return vList.some(function(x){ return Math.abs(x - d) < 0.05; }); }
+  function vDeg(d){ return String(d).replace('.', ','); }
+  function vSet(d){ $('vInput').value = d; return d; }
+  function vRead(){
+    const v = parseFloat(String($('vInput').value).replace(',', '.'));
+    return isFinite(v) ? vNorm(v) : null;
+  }
+  function vRemove(d){
+    for(let i = vList.length - 1; i >= 0; i--){
+      if(Math.abs(vList[i] - d) < 0.05){ vList.splice(i, 1); return true; }
+    }
+    return false;
+  }
+  function vAdd(d){
+    if(d === undefined || d === null) d = vRead();
+    if(d === null){ vRender('Gib einen Winkel zwischen 0 und 360 ein.'); return; }
+    vSet(d);
+    if(vHas(d)){ vRender(vDeg(d) + '° ist schon gezeichnet.'); return; }
+    vList.push(d);
+    vRender();
+  }
+  function vForward(){
+    const cur = vRead();
+    vAdd(vNorm((cur === null ? -vStepSize() : cur) + vStepSize()));
+  }
+  function vBack(){
+    const cur = vRead() === null ? 0 : vRead();
+    let removed = vRemove(cur);
+    const next = vNorm(cur - vStepSize());
+    vSet(next);
+    if(!removed) removed = vRemove(next);
+    vRender(removed ? null : 'Bei ' + vDeg(next) + '° war kein Dreieck zum Entfernen.');
+  }
+  function vFillAll(){
+    const st = vStepSize();
+    for(let d = 0; d < 359.999; d += st){
+      const r = vNorm(d);
+      if(!vHas(r)) vList.push(r);
+    }
+    vRender();
+  }
+
+  document.querySelector('.stage').addEventListener('click', function(e){
+    const btn = e.target.closest('button');
+    if(!btn) return;
+    const act = btn.getAttribute('data-act');
+    if(act === 'plus')       vForward();
+    else if(act === 'minus') vBack();
+    else if(act === 'add')   vAdd();
+    else if(act === 'fill')  vFillAll();
+    else if(act === 'undo'){ vList.pop(); vRender(); }
+    else if(act === 'clear'){ vList = []; vRender(); }
+    else if(btn.classList.contains('chip')){
+      vList.splice(+btn.getAttribute('data-i'), 1);
+      vRender();
+    }
+  });
+  $('vInput').addEventListener('keydown', function(e){ if(e.key === 'Enter'){ e.preventDefault(); vAdd(); } });
+  $('vStep').addEventListener('change', function(){
+    const st = vStepSize();
+    $('vInput').step = st;
+    $('vFill').textContent = 'In ' + st + '°-Schritten füllen';
+  });
+  $('vCbCircle').addEventListener('change', function(){
+    $('vCircle').setAttribute('visibility', this.checked ? 'visible' : 'hidden');
+  });
+  $('vCbPath').addEventListener('change', function(){
+    $('vPath').setAttribute('visibility', this.checked ? 'visible' : 'hidden');
+  });
+
+  try{
+    vList = [30];
+    vRender();
+    syncGraphs();
+    setAngle(30, false, true);
+  }catch(err){
+    const h = document.getElementById('vHint');
+    if(h) h.textContent = 'Die Seite konnte nicht starten: ' + err.message;
+  }
+})();
+</script>
+</body>
+</html>
